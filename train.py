@@ -45,7 +45,7 @@ def train(batch_size=64, epochs=10, config=None, accelerator="cuda" if torch.cud
     )
 
     scaling_config = ScalingConfig(
-        num_workers=num_workers, use_gpu=True if accelerator=="cuda" else False, resources_per_worker={"CPU": 2, "GPU": 1 if accelerator=="cuda" else 0}
+        num_workers=num_workers, use_gpu=True if accelerator=="cuda" else False, resources_per_worker={"CPU": 1, "GPU": 1 if accelerator=="cuda" else 0}
     )
 
     # Define a base LightningTrainer without hyper-parameters for Tuner
@@ -65,7 +65,7 @@ def train(batch_size=64, epochs=10, config=None, accelerator="cuda" if torch.cud
         ),
         run_config=air.RunConfig(
             storage_path=cwd,
-            name="tune_cifar10",
+            name=f"tune_cifar10_{logger_name}",
         ),
     )
     results = tuner.fit()
