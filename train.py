@@ -1,7 +1,7 @@
 import torch
 from ray import air, tune
 import ray
-from ray.air.config import RunConfig, ScalingConfig
+from ray.air.config import RunConfig, ScalingConfig, CheckpointConfig
 from ray.train.lightning import LightningTrainer, LightningConfigBuilder
 import torch.nn.functional as F
 from pytorch_lightning.callbacks import RichProgressBar
@@ -32,16 +32,8 @@ def train(batch_size=64, epochs=10, config=None, accelerator="cuda" if torch.cud
         .module(cls=SmallNetLightning, config=config)
         .trainer(max_epochs=epochs, accelerator=accelerator, logger=None, callbacks=[RichProgressBar(leave=True)], limit_train_batches=train_batches_per_epoch, limit_val_batches=val_batches_per_epoch)
         .fit_params(datamodule=data_module)
-        #.checkpointing(monitor="val_loss", save_top_k=0, mode="min")
+        .checkpointing(monitor="val_loss", save_top_k=0)
         .build()
-    )
-
-    run_config = RunConfig(
-        # checkpoint_config=CheckpointConfig(
-        #     num_to_keep=1,
-        #     checkpoint_score_attribute="val_loss",
-        #     checkpoint_score_order="min",
-        #  ),
     )
 
     scaling_config = ScalingConfig(
@@ -51,7 +43,6 @@ def train(batch_size=64, epochs=10, config=None, accelerator="cuda" if torch.cud
     # Define a base LightningTrainer without hyper-parameters for Tuner
     lightning_trainer = LightningTrainer(
         scaling_config=scaling_config,
-        run_config=run_config,
     )   
 
     tuner = tune.Tuner(
@@ -63,9 +54,12 @@ def train(batch_size=64, epochs=10, config=None, accelerator="cuda" if torch.cud
             mode="min",
             #num_samples=num_samples,
         ),
-        run_config=air.RunConfig(
+        run_config=RunConfig(
             storage_path=cwd,
             name=f"tune_cifar10_{logger_name}",
+            checkpoint_config=CheckpointConfig(
+                num_to_keep=1,
+            ),
         ),
     )
     results = tuner.fit()

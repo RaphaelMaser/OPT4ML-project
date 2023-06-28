@@ -41,7 +41,6 @@ class SmallNetLightning(pl.LightningModule):
             self.optimizer = self.config["optimizer"](self.model.parameters(), **self.config["parameters"])
         
         
-        
     def forward(self, x):
         return self.model(x)
     
