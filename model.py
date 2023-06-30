@@ -3,6 +3,7 @@ import pytorch_lightning as pl
 from torch import nn
 from sam import SAM
 import torch.nn.functional as F
+import os
 
 class SmallNet(nn.Module):
     def __init__(self):
@@ -85,3 +86,14 @@ class SmallNetLightning(pl.LightningModule):
         else:
             optimizer = self.config["optimizer"](self.model.parameters(), **self.config["parameters"])
         return optimizer
+    
+    
+    def on_train_end(self):
+        print("Deleting checkpoints...")
+        for root, dirs, files in os.walk(".."):
+            for file in files:
+                if "checkpoints" or "checkpoint_00" in root:
+                    if file.endswith("last.ckpt"):
+                        os.remove(os.path.join(root, file))
+                    if file.endswith("model"):
+                        os.remove(os.path.join(root, file))
