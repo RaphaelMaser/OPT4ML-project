@@ -2,4 +2,4 @@ tune_cifar10/
 csv_logs/
 data/
 __pycache__/sam.cpython-310.pyc
-tune_cifar10_SmallNet
+tune_cifar10_SmallNet*
