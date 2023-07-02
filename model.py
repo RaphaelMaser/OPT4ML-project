@@ -26,24 +26,40 @@ class SmallNet(nn.Module):
 
 class SmallNetLightning(pl.LightningModule):
     def __init__(self, config):
-        super().__init__()
+        super(SmallNetLightning, self).__init__()
+        # Reduced the number of output channels
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1)
+        self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
+        self.pool = nn.MaxPool2d(2, 2)
+        # Reduced the input features of the fully connected layer
+        self.fc1 = nn.Linear(32 * 16 * 16, 64) # reduced from 128 to 64
+        self.fc2 = nn.Linear(64, 10) # output layer remains the same
+        
         self.config = config
         #self.model = torchvision.models.resnet18()
-        self.model = SmallNet()
+        
+        # if torch.cuda.is_available():
+        #     self.model = SmallNet().to("cuda")
+        # else:
         #num_ftrs = self.model.fc.in_features
         #self.model.fc = nn.Linear(num_ftrs, 10)  # CIFAR10 has 10 classes
         self.loss = torch.nn.CrossEntropyLoss()
         self.training_step_outputs = []
         self.validation_step_outputs = []
         self.automatic_optimization = False
-        if self.config["SAM"]:
-            self.optimizer = SAM(self.model.parameters(), self.config["optimizer"], **self.config["parameters"])
-        else:
-            self.optimizer = self.config["optimizer"](self.model.parameters(), **self.config["parameters"])
+        # if self.config["SAM"]:
+        #     self.optimizer = SAM(self.parameters(), self.config["optimizer"], **self.config["parameters"])
+        # else:
+        #     self.optimizer = self.config["optimizer"](self.parameters(), **self.config["parameters"])
         
         
     def forward(self, x):
-        return self.model(x)
+        x = F.relu(self.conv1(x))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 32 * 16 * 16) # match the number of output channels from conv2
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
     
     
     def training_step(self, batch, batch_idx):
@@ -52,12 +68,12 @@ class SmallNetLightning(pl.LightningModule):
         x, y = batch
         
         def closure():
-            loss = self.loss(self.model(x), y)
+            loss = self.loss(self(x), y)
             optimizer.zero_grad()
             self.manual_backward(loss)
             return loss
         
-        loss = self.loss(self.model(x), y)
+        loss = self.loss(self(x), y)
         self.log('train_loss', loss, prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
 
         optimizer.zero_grad()
@@ -73,7 +89,7 @@ class SmallNetLightning(pl.LightningModule):
         
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.model(x)
+        y_hat = self(x)
         loss = self.loss(y_hat, y)
         self.log('val_loss', loss, prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
         return loss
@@ -82,11 +98,10 @@ class SmallNetLightning(pl.LightningModule):
     def configure_optimizers(self):
         # takes the constructor of the optimizer as input (for example torch.optim.Adam)
         if self.config["SAM"]:
-            optimizer = SAM(self.model.parameters(), self.config["optimizer"], **self.config["parameters"])
+            optimizer = SAM(self.parameters(), self.config["optimizer"], **self.config["parameters"])
         else:
-            optimizer = self.config["optimizer"](self.model.parameters(), **self.config["parameters"])
+            optimizer = self.config["optimizer"](self.parameters(), **self.config["parameters"])
         return optimizer
-    
     
     def on_train_end(self):
         print("Deleting checkpoints...")
