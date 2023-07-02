@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import RichProgressBar
 from data import CIFAR10DataModule
 from model import SmallNetLightning
 
-def train(batch_size=64, epochs=10, config=None, accelerator="cuda" if torch.cuda.is_available() else "cpu", num_workers=1, cwd=None, logger_name="my_model", train_batches_per_epoch=0.1, val_batches_per_epoch=0.2):
+def train(batch_size=64, epochs=10, config=None, accelerator="gpu" if torch.cuda.is_available() else "cpu", num_workers=2, cwd=None, logger_name="my_model", train_batches_per_epoch=0.1, val_batches_per_epoch=0.2):
     '''
     batch_size: batch size for training
     config: dictionary containing the optimizer and its parameters
@@ -30,14 +30,14 @@ def train(batch_size=64, epochs=10, config=None, accelerator="cuda" if torch.cud
     lightning_config = (
         LightningConfigBuilder()
         .module(cls=SmallNetLightning, config=config)
-        .trainer(max_epochs=epochs, accelerator=accelerator, logger=None, callbacks=[RichProgressBar(leave=True)], limit_train_batches=train_batches_per_epoch, limit_val_batches=val_batches_per_epoch)
+        .trainer(max_epochs=epochs, accelerator=accelerator, logger=None, callbacks=[RichProgressBar(leave=True)], limit_train_batches=train_batches_per_epoch, limit_val_batches=val_batches_per_epoch, log_every_n_steps=1)
         .fit_params(datamodule=data_module)
         .checkpointing(monitor="val_loss", save_top_k=0)
         .build()
     )
 
     scaling_config = ScalingConfig(
-        num_workers=num_workers, use_gpu=True if accelerator=="cuda" else False, resources_per_worker={"CPU": 1, "GPU": 1 if accelerator=="cuda" else 0}
+        num_workers=num_workers, use_gpu=True if accelerator=="gpu" else False, resources_per_worker={"CPU": 1, "GPU": 1 if accelerator=="gpu" else 0}
     )
 
     # Define a base LightningTrainer without hyper-parameters for Tuner
@@ -49,7 +49,7 @@ def train(batch_size=64, epochs=10, config=None, accelerator="cuda" if torch.cud
         lightning_trainer,
         param_space={"lightning_config": lightning_config},
         tune_config=tune.TuneConfig(
-            max_concurrent_trials=1,
+            max_concurrent_trials=2,
             metric="val_loss",
             mode="min",
             #num_samples=num_samples,
