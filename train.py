@@ -37,7 +37,7 @@ def train(batch_size=64, epochs=10, config=None, accelerator="gpu" if torch.cuda
     )
 
     scaling_config = ScalingConfig(
-        num_workers=num_workers, use_gpu=True if accelerator=="gpu" else False, trainer_resources={"CPU": 15}
+        num_workers=num_workers, use_gpu=True if accelerator=="gpu" else False, resources_per_worker={"CPU": 15}
     )
 
     # Define a base LightningTrainer without hyper-parameters for Tuner
