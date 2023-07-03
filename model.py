@@ -4,6 +4,9 @@ from torch import nn
 from sam import SAM
 import torch.nn.functional as F
 import os
+from torch.utils.data import Dataset
+import math
+from data import CIFAR10DataModule
 
 class SmallNet(nn.Module):
     def __init__(self):
@@ -37,7 +40,8 @@ class SmallNetLightning(pl.LightningModule):
         
         self.config = config
         #self.model = torchvision.models.resnet18()
-        
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
         # if torch.cuda.is_available():
         #     self.model = SmallNet().to("cuda")
         # else:
@@ -75,6 +79,7 @@ class SmallNetLightning(pl.LightningModule):
         
         loss = self.loss(self(x), y)
         self.log('train_loss', loss, prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+        #self.training_step_outputs.append(loss)
 
         optimizer.zero_grad()
         self.manual_backward(loss)
@@ -92,8 +97,19 @@ class SmallNetLightning(pl.LightningModule):
         y_hat = self(x)
         loss = self.loss(y_hat, y)
         self.log('val_loss', loss, prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+        #self.validation_step_outputs.append(loss)
         return loss
     
+    # def on_train_epoch_end(self):
+    #     epoch_mean = torch.stack(self.training_step_outputs).mean()
+    #     val_mean = torch.stack(self.validation_step_outputs).mean()
+    #     self.log("train_loss", epoch_mean)
+    #     self.log("val_loss", val_mean)
+    #     # free up the memory
+    #     self.training_step_outputs.clear()
+    #     self.validation_step_outputs.clear()
+
+
     
     def configure_optimizers(self):
         # takes the constructor of the optimizer as input (for example torch.optim.Adam)
@@ -102,6 +118,7 @@ class SmallNetLightning(pl.LightningModule):
         else:
             optimizer = self.config["optimizer"](self.parameters(), **self.config["parameters"])
         return optimizer
+
     
     def on_train_end(self):
         print("Deleting checkpoints...")
@@ -112,3 +129,4 @@ class SmallNetLightning(pl.LightningModule):
                         os.remove(os.path.join(root, file))
                     if file.endswith("model"):
                         os.remove(os.path.join(root, file))
+

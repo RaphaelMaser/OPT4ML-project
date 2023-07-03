@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import os
+import torch
 
 class CIFAR10DataModule(pl.LightningDataModule):
     def __init__(self, batch_size=64, cwd=None):
@@ -23,9 +24,9 @@ class CIFAR10DataModule(pl.LightningDataModule):
             self.cifar10_val = datasets.CIFAR10(root=self.data_path, train=False, transform=self.transform)
 
     def train_dataloader(self):
-        return DataLoader(self.cifar10_train, batch_size=self.batch_size, num_workers=1, shuffle=True)
+        return DataLoader(self.cifar10_train, batch_size=self.batch_size, num_workers=7, shuffle=True, prefetch_factor=100)
 
     def val_dataloader(self):
-        return DataLoader(self.cifar10_val, batch_size=self.batch_size, num_workers=1, shuffle=True)
+        return DataLoader(self.cifar10_val, batch_size=self.batch_size, num_workers=7, shuffle=True)
     
 
